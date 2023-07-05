@@ -7,16 +7,17 @@ import javax.persistence.*;
 
 @Entity
 @Data
-@Table(name = "users")
-public class User {
+@Table(name = "email")
+public class Email {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
 
-    @Column(name = "username")
-    private String username;
+    @ManyToOne
+    @JoinColumn
+    private Contact contact;
 
-    @Column(name = "password")
-    private String password;
+    @Column(unique = true)
+    private String email;
+
 }
