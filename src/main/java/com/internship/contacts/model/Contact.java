@@ -18,7 +18,6 @@ public class Contact {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(unique = true)
     private String name;
 
     @OneToMany(mappedBy = "contact", cascade = CascadeType.ALL)

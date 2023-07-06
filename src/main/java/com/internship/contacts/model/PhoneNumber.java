@@ -7,18 +7,16 @@ import javax.persistence.*;
 
 @Entity
 @Data
-@Table(name = "phone_number")
+@Table(name = "phone_number", uniqueConstraints = @UniqueConstraint(columnNames = {"phoneNumber", "contact_id"}))
 public class PhoneNumber {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn
+    @JoinColumn(name = "contact_id")
     private Contact contact;
 
-    @Column(unique = true)
     private String phoneNumber;
-
 }
 
