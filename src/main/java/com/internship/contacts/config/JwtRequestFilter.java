@@ -10,7 +10,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -39,6 +38,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     log.debug("Token expired");
                 } catch (SignatureException e) {
                     log.debug("Bad signature");
+                } catch (Exception e) {
+                    log.debug("Bad JWT token");
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Your provided bad JWT token");
                 }
             }
 
@@ -50,12 +52,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 );
                 SecurityContextHolder.getContext().setAuthentication(token);
             }
-
             filterChain.doFilter(request, response);
         } catch (MaxUploadSizeExceededException ex) {
             log.debug("Max upload size exceeded");
             response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "File size exceeds the maximum limit.");
         }
     }
-
 }
