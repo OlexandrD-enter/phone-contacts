@@ -10,7 +10,6 @@ import java.util.List;
 
 @Repository
 public interface PhoneNumberRepository extends JpaRepository<PhoneNumber, Long> {
-    List<PhoneNumber> findByContact(Contact contact);
-    PhoneNumber findByPhoneNumberAndContact(String phoneNumber, Contact contact);
     List<PhoneNumber> findAllByContactUser(User user);
+    void deleteAllByContact(Contact contact);
 }

@@ -9,7 +9,6 @@ import java.util.List;
 
 @Repository
 public interface EmailRepository extends JpaRepository<Email, Long> {
-    List<Email> findByContact(Contact contact);
-    Email findByEmailAndContact(String email, Contact contact);
     List<Email> findAllByContactUser(User user);
+    void deleteAllByContact(Contact contact);
 }

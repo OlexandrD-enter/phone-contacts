@@ -38,7 +38,9 @@ public class ContactController {
     }
 
     @PostMapping("/contacts")
-    public ResponseEntity<?> save(@RequestBody @Valid ContactDTO contactDTO, BindingResult bindingResult, Principal principal) {
+    public ResponseEntity<?> save(@RequestBody @Valid ContactDTO contactDTO,
+                                  BindingResult bindingResult,
+                                  Principal principal) {
         if (bindingResult.hasErrors()) {
             List<FieldError> fieldErrors = bindingResult.getFieldErrors();
             return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
@@ -47,6 +49,25 @@ public class ContactController {
         Optional<User> optionalUser = userService.findByUsername(currentUsername);
         if (optionalUser.isPresent()) {
             return contactService.save(contactDTO, optionalUser.get());
+        }else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
+        }
+    }
+
+    @PutMapping("/contacts/{id}")
+    public ResponseEntity<?> edit(@RequestBody @Valid ContactDTO contactDTO,
+                                  BindingResult bindingResult,
+                                  @PathVariable Long id,
+                                  Principal principal) {
+        if (bindingResult.hasErrors()) {
+            List<FieldError> fieldErrors = bindingResult.getFieldErrors();
+            return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
+        }
+        String currentUsername = principal.getName();
+        Optional<User> optionalUser = userService.findByUsername(currentUsername);
+        Optional<Contact> optionalContact = contactService.findById(id);
+        if (optionalContact.isPresent() && optionalUser.isPresent()) {
+            return contactService.update(contactDTO, optionalContact.get(), optionalUser.get(), id);
         }else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
         }

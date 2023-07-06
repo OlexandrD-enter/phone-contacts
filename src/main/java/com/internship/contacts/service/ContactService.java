@@ -1,6 +1,7 @@
 package com.internship.contacts.service;
 
 import com.internship.contacts.dto.ContactDTO;
+import com.internship.contacts.exception.ContactValidationException;
 import com.internship.contacts.model.Contact;
 import com.internship.contacts.model.Email;
 import com.internship.contacts.model.PhoneNumber;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
@@ -57,14 +59,14 @@ public class ContactService {
 
     public ResponseEntity<?> save(ContactDTO contactDTO, User user) {
         Optional<Contact> optionalContact = contactRepository.findByNameAndUserUsername(contactDTO.getName(), user.getUsername());
-        if (optionalContact.isPresent()){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Contact with name " + contactDTO.getName() + " already exists in your phone");
+        if (optionalContact.isPresent()) {
+            throw new ContactValidationException("Contact with name '" + contactDTO.getName() + "' already exists in your phone");
         }
-        if (isUserAlreadyHaveContactWithEmails(contactDTO, user)){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("You already have contact with such email");
+        if (isUserAlreadyHaveContactWithEmails(contactDTO, user)) {
+            throw new ContactValidationException("You already have a contact with such email");
         }
-        if (isUserAlreadyHaveContactWithPhones(contactDTO, user)){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("You already have contact with such phone number");
+        if (isUserAlreadyHaveContactWithPhones(contactDTO, user)) {
+            throw new ContactValidationException("You already have a contact with such phone number");
         }
         Contact contact = new Contact();
         contact.setName(contactDTO.getName());
@@ -93,7 +95,7 @@ public class ContactService {
         return ResponseEntity.status(HttpStatus.CREATED).body("Contact saved successfully.");
     }
 
-    private boolean isUserAlreadyHaveContactWithEmails(ContactDTO contactDTO, User user){
+    private boolean isUserAlreadyHaveContactWithEmails(ContactDTO contactDTO, User user) {
         List<Email> existingEmails = emailRepository.findAllByContactUser(user);
         List<String> emailList = existingEmails.stream()
                 .map(Email::getEmail)
@@ -111,5 +113,54 @@ public class ContactService {
 
     public Optional<Contact> findByName(String name) {
         return contactRepository.findByName(name);
+    }
+
+    public Optional<Contact> findById(Long id) {
+        return contactRepository.findById(id);
+    }
+
+    @Transactional
+    public ResponseEntity<?> update(ContactDTO contactDTO, Contact contact, User user, Long id) {
+
+        Optional<Contact> optionalContact = contactRepository.findByNameAndUserUsername(contactDTO.getName(), user.getUsername());
+        if (optionalContact.isPresent() && !optionalContact.get().getId().equals(id)) {
+            throw new ContactValidationException("Contact with name '" + contactDTO.getName() + "' already exists in your phone");
+        }
+
+        emailRepository.deleteAllByContact(contact);
+        phoneNumberRepository.deleteAllByContact(contact);
+
+        if (isUserAlreadyHaveContactWithEmails(contactDTO, user)) {
+            throw new ContactValidationException("You already have a contact with such email");
+        }
+
+        if (isUserAlreadyHaveContactWithPhones(contactDTO, user)) {
+            throw new ContactValidationException("You already have a contact with such phone number");
+        }
+
+        contact.setName(contactDTO.getName());
+
+        List<Email> emails = contactDTO.getEmails().stream()
+                .map(email -> {
+                    Email emailObj = new Email();
+                    emailObj.setEmail(email);
+                    emailObj.setContact(contact);
+                    return emailObj;
+                })
+                .collect(Collectors.toList());
+        contact.getEmails().addAll(emails);
+
+        List<PhoneNumber> phoneNumbers = contactDTO.getPhoneNumbers().stream()
+                .map(phoneNumber -> {
+                    PhoneNumber phoneNumberObj = new PhoneNumber();
+                    phoneNumberObj.setPhoneNumber(phoneNumber);
+                    phoneNumberObj.setContact(contact);
+                    return phoneNumberObj;
+                })
+                .collect(Collectors.toList());
+        contact.getPhoneNumbers().addAll(phoneNumbers);
+
+        contactRepository.save(contact);
+        return ResponseEntity.ok("Contact updated successfully.");
     }
 }
