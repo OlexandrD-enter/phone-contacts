@@ -5,6 +5,7 @@ import com.internship.contacts.utils.annotation.ValidPhoneList;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.constraints.NotEmpty;
 import java.util.List;
@@ -20,4 +21,5 @@ public class ContactDTO {
     @NotEmpty
     @ValidPhoneList(message = "Invalid phone number")
     private List<String> phoneNumbers;
+    private MultipartFile imageFile;
 }

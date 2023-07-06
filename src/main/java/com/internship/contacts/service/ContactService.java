@@ -9,6 +9,7 @@ import com.internship.contacts.model.User;
 import com.internship.contacts.repository.ContactRepository;
 import com.internship.contacts.repository.EmailRepository;
 import com.internship.contacts.repository.PhoneNumberRepository;
+import com.internship.contacts.utils.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +73,8 @@ public class ContactService {
         Contact contact = new Contact();
         contact.setName(contactDTO.getName());
         contact.setUser(user);
+        setImageToContact(contactDTO, contact);
+
         List<Email> emails = contactDTO.getEmails().stream()
                 .map(email -> {
                     Email emailObj = new Email();
@@ -93,6 +97,20 @@ public class ContactService {
         contactRepository.save(contact);
 
         return ResponseEntity.status(HttpStatus.CREATED).body("Contact saved successfully.");
+    }
+
+    private void setImageToContact(ContactDTO contactDTO, Contact contact) {
+        try {
+            if (contactDTO.getImageFile() != null && !contactDTO.getImageFile().isEmpty()) {
+                if(contactDTO.getImageFile().getSize() > Constants.MAX_IMAGE_SIZE){
+                    throw new ContactValidationException("Too large file, choose another");
+                }
+                byte[] imageData = contactDTO.getImageFile().getBytes();
+                contact.setImage(imageData);
+            }
+        }catch (IOException e){
+            throw new ContactValidationException(e.getMessage());
+        }
     }
 
     private boolean isUserAlreadyHaveContactWithEmails(ContactDTO contactDTO, User user) {
@@ -158,7 +176,7 @@ public class ContactService {
                 })
                 .collect(Collectors.toList());
         contact.getPhoneNumbers().addAll(phoneNumbers);
-
+        setImageToContact(contactDTO, contact);
         contactRepository.save(contact);
         return ResponseEntity.ok("Contact updated successfully.");
     }

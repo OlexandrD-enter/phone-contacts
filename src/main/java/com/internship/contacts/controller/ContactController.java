@@ -6,7 +6,9 @@ import com.internship.contacts.model.User;
 import com.internship.contacts.service.ContactService;
 import com.internship.contacts.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -38,12 +40,12 @@ public class ContactController {
     }
 
     @PostMapping("/contacts")
-    public ResponseEntity<?> save(@RequestBody @Valid ContactDTO contactDTO,
+    public ResponseEntity<?> save(@ModelAttribute @Valid ContactDTO contactDTO,
                                   BindingResult bindingResult,
                                   Principal principal) {
-        if (bindingResult.hasErrors()) {
-            List<FieldError> fieldErrors = bindingResult.getFieldErrors();
-            return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
+        ResponseEntity<?> errorResponse = handleBindingErrors(bindingResult);
+        if (errorResponse != null) {
+            return errorResponse;
         }
         String currentUsername = principal.getName();
         Optional<User> optionalUser = userService.findByUsername(currentUsername);
@@ -55,13 +57,13 @@ public class ContactController {
     }
 
     @PutMapping("/contacts/{id}")
-    public ResponseEntity<?> edit(@RequestBody @Valid ContactDTO contactDTO,
+    public ResponseEntity<?> edit(@ModelAttribute @Valid ContactDTO contactDTO,
                                   BindingResult bindingResult,
                                   @PathVariable Long id,
                                   Principal principal) {
-        if (bindingResult.hasErrors()) {
-            List<FieldError> fieldErrors = bindingResult.getFieldErrors();
-            return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
+        ResponseEntity<?> errorResponse = handleBindingErrors(bindingResult);
+        if (errorResponse != null) {
+            return errorResponse;
         }
         String currentUsername = principal.getName();
         Optional<User> optionalUser = userService.findByUsername(currentUsername);
@@ -71,5 +73,26 @@ public class ContactController {
         }else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
         }
+    }
+
+    @GetMapping("/contacts/{id}/image")
+    public ResponseEntity<byte[]> getImage(@PathVariable Long id) {
+        Optional<Contact> optionalContact = contactService.findById(id);
+        if (optionalContact.isPresent() && optionalContact.get().getImage() != null) {
+            byte[] imageData = optionalContact.get().getImage();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.IMAGE_JPEG);
+            return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    private ResponseEntity<?> handleBindingErrors(BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            List<FieldError> fieldErrors = bindingResult.getFieldErrors();
+            return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
+        }
+        return null;
     }
 }

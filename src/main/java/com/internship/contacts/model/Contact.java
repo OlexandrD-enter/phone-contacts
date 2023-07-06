@@ -20,6 +20,10 @@ public class Contact {
 
     private String name;
 
+    @Lob
+    @Column(name = "image")
+    private byte[] image;
+
     @OneToMany(mappedBy = "contact", cascade = CascadeType.ALL)
     private List<Email> emails;
 
