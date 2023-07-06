@@ -13,6 +13,7 @@ import com.internship.contacts.repository.PhoneNumberRepository;
 import com.internship.contacts.utils.Constants;
 import com.internship.contacts.utils.CustomMultipartFile;
 import com.internship.contacts.utils.mapper.ContactMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,15 +21,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import javax.validation.ConstraintViolation;
+import javax.validation.Validation;
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class ContactService {
     private final ContactRepository contactRepository;
     private final EmailRepository emailRepository;
@@ -65,6 +68,20 @@ public class ContactService {
     }
 
     public ResponseEntity<?> save(ContactDTO contactDTO, User user) {
+        checkIfContactDataAlreadyExists(contactDTO, user);
+
+        Contact contact = new Contact();
+        contact.setName(contactDTO.getName());
+        contact.setUser(user);
+        setImageToContact(contactDTO, contact);
+
+        ContactMapper.ListsEmailsAndPhonesToStringNames(contactDTO, contact);
+        contactRepository.save(contact);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Contact saved successfully.");
+    }
+
+    private void checkIfContactDataAlreadyExists(ContactDTO contactDTO, User user) {
         Optional<Contact> optionalContact = contactRepository.findByNameAndUserUsername(contactDTO.getName(), user.getUsername());
         if (optionalContact.isPresent()) {
             throw new ContactValidationException("Contact with name '" + contactDTO.getName() + "' already exists in your phone");
@@ -75,33 +92,6 @@ public class ContactService {
         if (isUserAlreadyHaveContactWithPhones(contactDTO, user)) {
             throw new ContactValidationException("You already have a contact with such phone number");
         }
-        Contact contact = new Contact();
-        contact.setName(contactDTO.getName());
-        contact.setUser(user);
-        setImageToContact(contactDTO, contact);
-
-        List<Email> emails = contactDTO.getEmails().stream()
-                .map(email -> {
-                    Email emailObj = new Email();
-                    emailObj.setEmail(email);
-                    emailObj.setContact(contact);
-                    return emailObj;
-                })
-                .collect(Collectors.toList());
-        contact.setEmails(emails);
-
-        List<PhoneNumber> phoneNumbers = contactDTO.getPhoneNumbers().stream()
-                .map(phoneNumber -> {
-                    PhoneNumber phoneNumberObj = new PhoneNumber();
-                    phoneNumberObj.setPhoneNumber(phoneNumber);
-                    phoneNumberObj.setContact(contact);
-                    return phoneNumberObj;
-                })
-                .collect(Collectors.toList());
-        contact.setPhoneNumbers(phoneNumbers);
-        contactRepository.save(contact);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body("Contact saved successfully.");
     }
 
     private void setImageToContact(ContactDTO contactDTO, Contact contact) {
@@ -193,5 +183,28 @@ public class ContactService {
                 .collect(Collectors.toList());
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.writeValue(new File(filePath), contactDTOs);
+    }
+
+    public List<Contact> importContacts(List<ContactDTO> contactDTOs, User user) {
+        List<Contact> importedContacts = new ArrayList<>();
+        for (ContactDTO contactDTO : contactDTOs) {
+            validateContactDTO(contactDTO);
+            Contact contact = ContactMapper.toEntity(contactDTO, user);
+            checkIfContactDataAlreadyExists(contactDTO, user);
+            importedContacts.add(contact);
+        }
+        return contactRepository.saveAll(importedContacts);
+    }
+
+    private void validateContactDTO(ContactDTO contactDTO) {
+        ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+        Validator validator = validatorFactory.getValidator();
+        Set<ConstraintViolation<ContactDTO>> violations = validator.validate(contactDTO);
+        if (!violations.isEmpty()) {
+            for (ConstraintViolation<ContactDTO> violation : violations) {
+                log.debug(violation.getMessage());
+            }
+            throw new ContactValidationException("Invalid contact data when importing from json");
+        }
     }
 }
