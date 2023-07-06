@@ -121,7 +121,6 @@ public class ContactService {
 
     @Transactional
     public ResponseEntity<?> update(ContactDTO contactDTO, Contact contact, User user, Long id) {
-
         Optional<Contact> optionalContact = contactRepository.findByNameAndUserUsername(contactDTO.getName(), user.getUsername());
         if (optionalContact.isPresent() && !optionalContact.get().getId().equals(id)) {
             throw new ContactValidationException("Contact with name '" + contactDTO.getName() + "' already exists in your phone");
