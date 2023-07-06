@@ -13,7 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
@@ -94,5 +99,20 @@ public class ContactController {
             return ResponseEntity.badRequest().body("Validation error: " + fieldErrors.get(0).getDefaultMessage());
         }
         return null;
+    }
+
+    @GetMapping("/contacts/export")
+    public ResponseEntity<?> exportContacts(HttpServletResponse response) {
+        try {
+            String filePath = "contacts.json";
+            contactService.exportContactsToJsonFile(filePath);
+            response.setContentType("application/json");
+            response.setHeader("Content-Disposition", "attachment; filename=contacts.json");
+            Files.copy(Paths.get(filePath), response.getOutputStream());
+            response.flushBuffer();
+            return ResponseEntity.ok().build();
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to export contacts: " + e.getMessage());
+        }
     }
 }

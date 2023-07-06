@@ -1,5 +1,6 @@
 package com.internship.contacts.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internship.contacts.dto.ContactDTO;
 import com.internship.contacts.exception.ContactValidationException;
 import com.internship.contacts.model.Contact;
@@ -10,6 +11,8 @@ import com.internship.contacts.repository.ContactRepository;
 import com.internship.contacts.repository.EmailRepository;
 import com.internship.contacts.repository.PhoneNumberRepository;
 import com.internship.contacts.utils.Constants;
+import com.internship.contacts.utils.CustomMultipartFile;
+import com.internship.contacts.utils.mapper.ContactMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -179,5 +184,14 @@ public class ContactService {
         setImageToContact(contactDTO, contact);
         contactRepository.save(contact);
         return ResponseEntity.ok("Contact updated successfully.");
+    }
+
+    public void exportContactsToJsonFile(String filePath) throws IOException {
+        List<Contact> contacts = contactRepository.findAll();
+        List<ContactDTO> contactDTOs = contacts.stream()
+                .map(ContactMapper::toDTO)
+                .collect(Collectors.toList());
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.writeValue(new File(filePath), contactDTOs);
     }
 }
